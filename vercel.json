@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/fetchAllShipData.js": {
+      "maxDuration": 30
+    }
+  }
+}

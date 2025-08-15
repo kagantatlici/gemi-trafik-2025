@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İstanbul Boğazı Gemi Trafik Durumu</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+        padding-bottom: 40px;
+      }
+      
+      .navbar {
+        background-color: #0d6efd;
+      }
+      
+      .card {
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+      
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      
+      .card-header {
+        border-radius: 10px 10px 0 0 !important;
+        font-weight: bold;
+      }
+      
+      .stat-badge {
+        font-size: 1.1rem;
+        padding: 8px 12px;
+        margin: 5px;
+        border-radius: 50px;
+        display: inline-block;
+      }
+      
+      .text-success { color: #28a745 !important; }
+      .text-danger { color: #dc3545 !important; }
+      .bg-light-success { background-color: #d4edda; }
+      .bg-light-danger { background-color: #f8d7da; }
+      .bg-light-warning { background-color: #fff3cd; }
+      .bg-light-info { background-color: #d1ecf1; }
+      
+      .loading-spinner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+      }
+      
+      /* Responsive tables */
+      .table-responsive {
+        border-radius: 0 0 10px 10px;
+      }
+      
+      /* Footer */
+      .footer {
+        background-color: #f8f9fa;
+        padding: 15px 0;
+        text-align: center;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        font-size: 0.8rem;
+      }
+      
+      /* Custom accordion styles */
+      .accordion-button:not(.collapsed) {
+        background-color: #e7f1ff;
+        color: #0d6efd;
+      }
+      
+      .stats-container {
+        font-size: 1.1rem;
+        line-height: 1.8;
+      }
+      
+      .refresh-button {
+        position: fixed;
+        bottom: 60px;
+        right: 20px;
+        z-index: 999;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      
+      /* Hide detailed tables on small screens by default */
+      @media (max-width: 768px) {
+        .mobile-collapse {
+          display: none;
+        }
+      }
+      
+      /* Sortable column headers */
+      .sortable {
+        cursor: pointer;
+        user-select: none;
+      }
+      
+      .sortable:hover {
+        background-color: #e9ecef;
+      }
+      
+      .sort-icon {
+        margin-left: 5px;
+      }
+      
+      .asc .sort-icon:after {
+        content: "↑";
+      }
+      
+      .desc .sort-icon:after {
+        content: "↓";
+      }
+    </style>
+  </head>
+  
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand navbar-dark mb-4">
+      <div class="container">
+        <a class="navbar-brand" href="#">
+          <i class="fas fa-ship me-2"></i>
+          İstanbul Boğazı Gemi Trafik Durumu
+        </a>
+      </div>
+    </nav>
+    
+    <div class="container" id="app">
+      <!-- Loading Spinner (initially shown) -->
+      <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="ms-3 mb-0 fs-5">Veriler yükleniyor...</p>
+      </div>
+      
+      <!-- Main Content (initially hidden) -->
+      <div id="mainContent" style="display: none;">
+        <!-- Summary Dashboard -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-primary text-white">
+                <i class="fas fa-compass me-2"></i> KUZEY'DEN GÜNEY'E GEÇİŞ
+              </div>
+              <div class="card-body stats-container" id="kuzeyGuneyStats">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-primary text-white">
+                <i class="fas fa-compass fa-flip-vertical me-2"></i> GÜNEY'DEN KUZEY'E GEÇİŞ
+              </div>
+              <div class="card-body stats-container" id="guneyKuzeyStats">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Detailed Data in Accordions -->
+        <div class="accordion mb-4" id="trafficAccordion">
+          <!-- Kuzey-Güney Planlı -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                <i class="fas fa-ship me-2"></i> Kuzey'den Güney'e Planlı Geçişler
+              </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse mobile-collapse" aria-labelledby="headingOne" data-bs-parent="#trafficAccordion">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-striped table-hover mb-0">
+                    <thead class="table-primary">
+                      <tr>
+                        <th>Planlama</th>
+                        <th>Gemi Adı</th>
+                        <th class="sortable" data-table="kuzeyGuneyPlanli">Boy (m) <span class="sort-icon"></span></th>
+                        <th>Gemi Tipi</th>
+                        <th>Kılavuz</th>
+                        <th>Römorkör</th>
+                        <th>SP2</th>
+                        <th>SP1</th>
+                      </tr>
+                    </thead>
+                    <tbody id="kuzeyGuneyPlanliBody">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Kuzey-Güney Hazır -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                <i class="fas fa-anchor me-2"></i> Kuzey'den Güney'e Geçişe Hazır
+              </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse mobile-collapse" aria-labelledby="headingTwo" data-bs-parent="#trafficAccordion">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-striped table-hover mb-0">
+                    <thead class="table-primary">
+                      <tr>
+                        <th>Planlama</th>
+                        <th>Gemi Adı</th>
+                        <th class="sortable" data-table="kuzeyGuneyHazir">Boy (m) <span class="sort-icon"></span></th>
+                        <th>Gemi Tipi</th>
+                        <th>Kılavuz</th>
+                        <th>Römorkör</th>
+                        <th>SP2</th>
+                        <th>SP1</th>
+                      </tr>
+                    </thead>
+                    <tbody id="kuzeyGuneyHazirBody">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Güney-Kuzey Planlı -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                <i class="fas fa-ship me-2"></i> Güney'den Kuzey'e Planlı Geçişler
+              </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse mobile-collapse" aria-labelledby="headingThree" data-bs-parent="#trafficAccordion">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-striped table-hover mb-0">
+                    <thead class="table-primary">
+                      <tr>
+                        <th>Planlama</th>
+                        <th>Gemi Adı</th>
+                        <th class="sortable" data-table="guneyKuzeyPlanli">Boy (m) <span class="sort-icon"></span></th>
+                        <th>Gemi Tipi</th>
+                        <th>Kılavuz</th>
+                        <th>Römorkör</th>
+                        <th>SP2</th>
+                        <th>SP1</th>
+                      </tr>
+                    </thead>
+                    <tbody id="guneyKuzeyPlanliBody">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Güney-Kuzey Hazır -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                <i class="fas fa-anchor me-2"></i> Güney'den Kuzey'e Geçişe Hazır
+              </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse mobile-collapse" aria-labelledby="headingFour" data-bs-parent="#trafficAccordion">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-striped table-hover mb-0">
+                    <thead class="table-primary">
+                      <tr>
+                        <th>Planlama</th>
+                        <th>Gemi Adı</th>
+                        <th class="sortable" data-table="guneyKuzeyHazir">Boy (m) <span class="sort-icon"></span></th>
+                        <th>Gemi Tipi</th>
+                        <th>Kılavuz</th>
+                        <th>Römorkör</th>
+                        <th>SP2</th>
+                        <th>SP1</th>
+                      </tr>
+                    </thead>
+                    <tbody id="guneyKuzeyHazirBody">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Last Update Info -->
+        <div class="alert alert-info" id="lastUpdateInfo">
+          <i class="fas fa-sync-alt me-2"></i> Son güncelleme: <span id="lastUpdateTime"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Floating Refresh Button -->
+    <button id="refreshButton" class="btn btn-primary refresh-button" onclick="loadData()">
+      <i class="fas fa-sync-alt"></i>
+    </button>
+    
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <span>© 2025 İstanbul Boğazı Gemi Trafik Durumu | Data Source: <a href="https://www.kiyiemniyeti.gov.tr" target="_blank">Kıyı Emniyeti Genel Müdürlüğü</a></span>
+      </div>
+    </footer>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+      // Global object to store the ship data for each table
+      const tableData = {
+        'kuzeyGuneyPlanli': [],
+        'kuzeyGuneyHazir': [],
+        'guneyKuzeyPlanli': [],
+        'guneyKuzeyHazir': []
+      };
+      
+      // Sorting state for each table
+      const sortState = {
+        'kuzeyGuneyPlanli': { column: 'boy', direction: 'desc' },
+        'kuzeyGuneyHazir': { column: 'boy', direction: 'desc' },
+        'guneyKuzeyPlanli': { column: 'boy', direction: 'desc' },
+        'guneyKuzeyHazir': { column: 'boy', direction: 'desc' }
+      };
+      
+      // Load data when the page loads
+      document.addEventListener('DOMContentLoaded', function() {
+        loadData();
+        setupSortableColumns();
+      });
+      
+      function setupSortableColumns() {
+        document.querySelectorAll('.sortable').forEach(element => {
+          element.addEventListener('click', function() {
+            const tableId = this.getAttribute('data-table');
+            
+            // Toggle sort direction if clicking the same column
+            if (sortState[tableId].column === 'boy') {
+              sortState[tableId].direction = sortState[tableId].direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              // Default to descending for boy
+              sortState[tableId].column = 'boy';
+              sortState[tableId].direction = 'desc';
+            }
+            
+            // Update visual indicator
+            updateSortIndicator(this, sortState[tableId].direction);
+            
+            // Re-sort and display the table
+            sortAndDisplayTable(tableId);
+          });
+        });
+      }
+      
+      function updateSortIndicator(element, direction) {
+        // Remove all current sort indicators
+        document.querySelectorAll('.sortable').forEach(el => {
+          el.classList.remove('asc', 'desc');
+        });
+        
+        // Add the appropriate class to the clicked element
+        element.classList.add(direction);
+      }
+      
+      function loadData() {
+        // Show loading spinner
+        document.getElementById('loadingSpinner').style.display = 'flex';
+        document.getElementById('mainContent').style.display = 'none';
+        
+        // Call the Cloud Function
+        fetch('/api/fetchAllShipData')
+          .then(response => response.json())
+          .then(displayData)
+          .catch(handleError);
+      }
+      
+      function displayData(response) {
+        console.log('Data received:', response);
+        
+        // Hide spinner and show content
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        // Update last refresh time
+        document.getElementById('lastUpdateTime').textContent = response.lastUpdate;
+        
+        // Process stats
+        const stats = response.stats;
+        displayStats(stats);
+        
+        // Store and process detailed data for tables
+        const data = response.detailedData;
+        
+        // Store data in our global object
+        tableData['kuzeyGuneyPlanli'] = Array.isArray(data['Kuzey-Güney_Planlı']) ? data['Kuzey-Güney_Planlı'] : [];
+        tableData['kuzeyGuneyHazir'] = Array.isArray(data['Kuzey-Güney_Hazır']) ? data['Kuzey-Güney_Hazır'] : [];
+        tableData['guneyKuzeyPlanli'] = Array.isArray(data['Güney-Kuzey_Planlı']) ? data['Güney-Kuzey_Planlı'] : [];
+        tableData['guneyKuzeyHazir'] = Array.isArray(data['Güney-Kuzey_Hazır']) ? data['Güney-Kuzey_Hazır'] : [];
+        
+        // Sort and display each table with current sort settings
+        Object.keys(tableData).forEach(tableId => {
+          sortAndDisplayTable(tableId);
+        });
+      }
+      
+      function sortAndDisplayTable(tableId) {
+        const data = [...tableData[tableId]]; // Create a copy of the array
+        const sort = sortState[tableId];
+        
+        // Apply sorting
+        if (sort.column === 'boy') {
+          data.sort((a, b) => {
+            const aValue = a.boy || 0;
+            const bValue = b.boy || 0;
+            
+            return sort.direction === 'asc' ? aValue - bValue : bValue - aValue;
+          });
+        }
+        
+        // Display the sorted data
+        populateTable(tableId + 'Body', data);
+      }
+      
+      function displayStats(stats) {
+        // Display Kuzey-Güney stats
+        const kuzeyHTML = `
+          <div class="mb-2"><i class="fas fa-flag-checkered me-2"></i><strong>Planlı Geçişler:</strong></div>
+          <div class="ps-4 mb-3">
+            <span class="stat-badge bg-light-info">🇹🇷 Toplam: ${stats.kuzey.planli.total || 0}</span>
+            <span class="stat-badge bg-light-success">🇲🇹 Kılavuzlu: ${stats.kuzey.planli.kilavuzlu || 0}</span>
+            <span class="stat-badge bg-light-danger">🏴‍☠️ Kılavuzsuz: ${stats.kuzey.planli.kilavuzsuz || 0}</span>
+            <span class="stat-badge bg-light-warning">🌅 Gündüzcü: ${stats.kuzey.planli.gunduzcu || 0}</span>
+          </div>
+          
+          <div class="mb-2"><i class="fas fa-anchor me-2"></i><strong>Geçişe Hazır:</strong></div>
+          <div class="ps-4">
+            <span class="stat-badge bg-light-info">⚓️ Toplam: ${stats.kuzey.hazir.total || 0}</span>
+            <span class="stat-badge bg-light-success">🇲🇹 Kılavuzlu: ${stats.kuzey.hazir.kilavuzlu || 0}</span>
+            <span class="stat-badge bg-light-danger">🏴‍☠️ Kılavuzsuz: ${stats.kuzey.hazir.kilavuzsuz || 0}</span>
+            <span class="stat-badge bg-light-warning">🌅 Gündüzcü: ${stats.kuzey.hazir.gunduzcu || 0}</span>
+          </div>
+        `;
+        document.getElementById('kuzeyGuneyStats').innerHTML = kuzeyHTML;
+        
+        // Display Güney-Kuzey stats
+        const guneyHTML = `
+          <div class="mb-2"><i class="fas fa-flag-checkered me-2"></i><strong>Planlı Geçişler:</strong></div>
+          <div class="ps-4 mb-3">
+            <span class="stat-badge bg-light-info">🇹🇷 Toplam: ${stats.guney.planli.total || 0}</span>
+            <span class="stat-badge bg-light-success">🇲🇹 Kılavuzlu: ${stats.guney.planli.kilavuzlu || 0}</span>
+            <span class="stat-badge bg-light-danger">🏴‍☠️ Kılavuzsuz: ${stats.guney.planli.kilavuzsuz || 0}</span>
+            <span class="stat-badge bg-light-warning">🌅 Gündüzcü: ${stats.guney.planli.gunduzcu || 0}</span>
+          </div>
+          
+          <div class="mb-2"><i class="fas fa-anchor me-2"></i><strong>Geçişe Hazır:</strong></div>
+          <div class="ps-4">
+            <span class="stat-badge bg-light-info">⚓️ Toplam: ${stats.guney.hazir.total || 0}</span>
+            <span class="stat-badge bg-light-success">🇲🇹 Kılavuzlu: ${stats.guney.hazir.kilavuzlu || 0}</span>
+            <span class="stat-badge bg-light-danger">🏴‍☠️ Kılavuzsuz: ${stats.guney.hazir.kilavuzsuz || 0}</span>
+            <span class="stat-badge bg-light-warning">🌅 Gündüzcü: ${stats.guney.hazir.gunduzcu || 0}</span>
+          </div>
+        `;
+        document.getElementById('guneyKuzeyStats').innerHTML = guneyHTML;
+      }
+      
+      function populateTable(tableId, data) {
+        const tableBody = document.getElementById(tableId);
+        tableBody.innerHTML = '';
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          const row = tableBody.insertRow();
+          const cell = row.insertCell(0);
+          cell.colSpan = 8;
+          cell.className = 'text-center py-3';
+          cell.textContent = 'Veri bulunamadı.';
+          return;
+        }
+        
+        data.forEach(ship => {
+          const row = tableBody.insertRow();
+          
+          // Planlama
+          const cellPlanlama = row.insertCell();
+          cellPlanlama.textContent = ship.planlama;
+          
+          // Gemi Adı
+          const cellGemi = row.insertCell();
+          cellGemi.textContent = ship.gemiAdi;
+          
+          // Boy
+          const cellBoy = row.insertCell();
+          cellBoy.textContent = ship.boy ? ship.boy.toFixed(2) : '-';
+          cellBoy.className = 'text-end';
+          
+          // Gemi Tipi
+          const cellTip = row.insertCell();
+          cellTip.textContent = ship.gemiTipi;
+          
+          // Kılavuz
+          const cellKilavuz = row.insertCell();
+          cellKilavuz.innerHTML = ship.kilavuz ? 
+            '<span class="badge bg-success">✅ Evet</span>' : 
+            '<span class="badge bg-danger">❌ Hayır</span>';
+          cellKilavuz.className = 'text-center';
+          
+          // Römorkör
+          const cellRomorkor = row.insertCell();
+          cellRomorkor.innerHTML = ship.romorkor ? 
+            '<span class="badge bg-success">✅ Evet</span>' : 
+            '<span class="badge bg-danger">❌ Hayır</span>';
+          cellRomorkor.className = 'text-center';
+          
+          // SP2
+          const cellSP2 = row.insertCell();
+          cellSP2.textContent = ship.sp2 || '-';
+          
+          // SP1
+          const cellSP1 = row.insertCell();
+          cellSP1.textContent = ship.sp1 || '-';
+        });
+      }
+      
+      function handleError(error) {
+        console.error('Error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        // Show error message
+        const mainContent = document.getElementById('mainContent');
+        mainContent.style.display = 'block';
+        mainContent.innerHTML = `
+          <div class="alert alert-danger">
+            <h4><i class="fas fa-exclamation-triangle me-2"></i> Hata!</h4>
+            <p>Veri çekilirken bir hata oluştu: ${error}</p>
+            <button class="btn btn-outline-danger mt-2" onclick="loadData()">
+              <i class="fas fa-sync-alt me-2"></i> Yeniden Dene
+            </button>
+          </div>
+        `;
+      }
+      
+      // For mobile: Show collapsed sections when clicking on them
+      document.addEventListener('DOMContentLoaded', function() {
+        const isMobile = window.innerWidth < 768;
+        
+        if (isMobile) {
+          const accordionButtons = document.querySelectorAll('.accordion-button');
+          accordionButtons.forEach(button => {
+            button.addEventListener('click', function() {
+              const target = this.getAttribute('data-bs-target');
+              const content = document.querySelector(target);
+              
+              if (content) {
+                content.classList.toggle('mobile-collapse');
+              }
+            });
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
