@@ -137,20 +137,36 @@ function generateDashboardStats(results) {
   };
 
   FILTER_SETS.forEach(filter => {
-    const data = results[filter.name] || [];
+    const data = results[filter.name];
+    
+    // Debug log
+    console.log(`Processing ${filter.name}:`, data);
+    
     if (Array.isArray(data)) {
       const direction = filter.name.startsWith("Güney") ? "guney" : "kuzey";
       const type = filter.name.includes("Planlı") ? "planli" : "hazir";
 
       stats[direction][type] = {
         total: data.length,
-        kilavuzlu: data.filter(row => row.kilavuz).length,
-        kilavuzsuz: data.filter(row => !row.kilavuz).length,
-        gunduzcu: data.filter(row => isDaytimeOnlyShip(row)).length
+        kilavuzlu: data.filter(row => row && row.kilavuz).length,
+        kilavuzsuz: data.filter(row => row && !row.kilavuz).length,
+        gunduzcu: data.filter(row => row && isDaytimeOnlyShip(row)).length
+      };
+    } else {
+      console.error(`Invalid data for ${filter.name}:`, data);
+      // Set default values if data is invalid
+      const direction = filter.name.startsWith("Güney") ? "guney" : "kuzey";
+      const type = filter.name.includes("Planlı") ? "planli" : "hazir";
+      stats[direction][type] = {
+        total: 0,
+        kilavuzlu: 0,
+        kilavuzsuz: 0,
+        gunduzcu: 0
       };
     }
   });
 
+  console.log('Final stats:', stats);
   return stats;
 }
 
