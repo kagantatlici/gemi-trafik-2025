@@ -415,6 +415,10 @@
         
         // Process stats
         const stats = response.stats;
+        if (!stats) {
+          console.error('Stats is undefined or null');
+          return;
+        }
         displayStats(stats);
         
         // Store and process detailed data for tables
