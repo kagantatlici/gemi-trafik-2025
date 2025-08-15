@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Performance Benchmark - GAS vs Vercel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-container {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚢 Performance Benchmark</h1>
+    <p>Google Apps Script vs Vercel deployment karşılaştırması</p>
+
+    <div class="stats">
+        <div class="test-container">
+            <h3>📊 Google Apps Script</h3>
+            <div id="gas-result" class="result loading">Test edilmedi</div>
+            <button onclick="testGAS()">GAS Test Et</button>
+            <div id="gas-details"></div>
+        </div>
+
+        <div class="test-container">
+            <h3>⚡ Vercel</h3>
+            <div id="vercel-result" class="result loading">Test edilmedi</div>
+            <button onclick="testVercel()">Vercel Test Et</button>
+            <div id="vercel-details"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>🏃‍♂️ Benchmark Sonuçları</h3>
+        <div id="comparison"></div>
+        <button onclick="runBenchmark()" id="benchmark-btn">5'er Kez Test Et ve Karşılaştır</button>
+    </div>
+
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycby5sVTDpxoTHDbSriD5Qq5-zRFxHD-2qs2zfn5W70VGHl5bVe8M7CtbOPbJqYM6quJ4/exec';
+        const VERCEL_URL = 'https://gemi-trafik-2025.vercel.app/api/fetchAllShipData';
+
+        async function testGAS() {
+            const result = document.getElementById('gas-result');
+            const details = document.getElementById('gas-details');
+            
+            result.textContent = 'Test ediliyor...';
+            result.className = 'result loading';
+            
+            try {
+                const start = performance.now();
+                const response = await fetch(`${GAS_URL}?t=${Date.now()}`, {
+                    method: 'POST',
+                    body: JSON.stringify({}),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                const end = performance.now();
+                const duration = Math.round(end - start);
+                
+                result.textContent = `✅ ${duration}ms`;
+                result.className = 'result success';
+                details.innerHTML = `
+                    <small>
+                        📈 Süre: ${duration}ms<br>
+                        📊 Status: ${response.status}<br>
+                        🚢 Toplam Gemi: ${getTotalShips(data)}<br>
+                        📅 Son Güncelleme: ${data.lastUpdate || 'N/A'}
+                    </small>
+                `;
+            } catch (error) {
+                const end = performance.now();
+                result.textContent = `❌ Hata: ${error.message}`;
+                result.className = 'result error';
+                details.innerHTML = `<small>Error: ${error.message}</small>`;
+            }
+        }
+
+        async function testVercel() {
+            const result = document.getElementById('vercel-result');
+            const details = document.getElementById('vercel-details');
+            
+            result.textContent = 'Test ediliyor...';
+            result.className = 'result loading';
+            
+            try {
+                const start = performance.now();
+                const response = await fetch(`${VERCEL_URL}?t=${Date.now()}`);
+                const data = await response.json();
+                const end = performance.now();
+                const duration = Math.round(end - start);
+                
+                result.textContent = `✅ ${duration}ms`;
+                result.className = 'result success';
+                details.innerHTML = `
+                    <small>
+                        📈 Süre: ${duration}ms<br>
+                        📊 Status: ${response.status}<br>
+                        🚢 Toplam Gemi: ${getTotalShips(data)}<br>
+                        📅 Son Güncelleme: ${data.lastUpdate || 'N/A'}
+                    </small>
+                `;
+            } catch (error) {
+                result.textContent = `❌ Hata: ${error.message}`;
+                result.className = 'result error';
+                details.innerHTML = `<small>Error: ${error.message}</small>`;
+            }
+        }
+
+        function getTotalShips(data) {
+            if (!data.stats) return 'N/A';
+            const stats = data.stats;
+            let total = 0;
+            if (stats.kuzey) {
+                total += (stats.kuzey.planli?.total || 0) + (stats.kuzey.hazir?.total || 0);
+            }
+            if (stats.guney) {
+                total += (stats.guney.planli?.total || 0) + (stats.guney.hazir?.total || 0);
+            }
+            return total;
+        }
+
+        async function runBenchmark() {
+            const btn = document.getElementById('benchmark-btn');
+            const comparison = document.getElementById('comparison');
+            
+            btn.disabled = true;
+            btn.textContent = 'Test ediliyor...';
+            
+            const gasResults = [];
+            const vercelResults = [];
+            
+            // 5 test for each
+            for (let i = 0; i < 5; i++) {
+                comparison.innerHTML = `<p>Test ${i + 1}/5 çalışıyor...</p>`;
+                
+                // Test GAS
+                try {
+                    const start = performance.now();
+                    await fetch(`${GAS_URL}?t=${Date.now()}`, {
+                        method: 'POST',
+                        body: JSON.stringify({}),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    gasResults.push(performance.now() - start);
+                } catch (e) {
+                    gasResults.push(null);
+                }
+                
+                await new Promise(r => setTimeout(r, 1000)); // 1 sec delay
+                
+                // Test Vercel
+                try {
+                    const start = performance.now();
+                    await fetch(`${VERCEL_URL}?t=${Date.now()}`);
+                    vercelResults.push(performance.now() - start);
+                } catch (e) {
+                    vercelResults.push(null);
+                }
+                
+                await new Promise(r => setTimeout(r, 1000)); // 1 sec delay
+            }
+            
+            // Calculate averages
+            const gasAvg = gasResults.filter(r => r !== null).reduce((a, b) => a + b, 0) / gasResults.filter(r => r !== null).length;
+            const vercelAvg = vercelResults.filter(r => r !== null).reduce((a, b) => a + b, 0) / vercelResults.filter(r => r !== null).length;
+            
+            const winner = gasAvg < vercelAvg ? 'Google Apps Script' : 'Vercel';
+            const improvement = Math.abs(gasAvg - vercelAvg);
+            const improvementPercent = Math.round((improvement / Math.max(gasAvg, vercelAvg)) * 100);
+            
+            comparison.innerHTML = `
+                <h4>🏆 Benchmark Sonuçları (5 test ortalaması)</h4>
+                <p><strong>Google Apps Script:</strong> ${Math.round(gasAvg)}ms</p>
+                <p><strong>Vercel:</strong> ${Math.round(vercelAvg)}ms</p>
+                <p><strong>Kazanan:</strong> 🥇 ${winner}</p>
+                <p><strong>Performans Farkı:</strong> ${Math.round(improvement)}ms (${improvementPercent}% ${winner === 'Vercel' ? 'daha hızlı' : 'daha yavaş'})</p>
+                <hr>
+                <p><small>GAS Sonuçları: ${gasResults.map(r => r ? Math.round(r) + 'ms' : 'HATA').join(', ')}</small></p>
+                <p><small>Vercel Sonuçları: ${vercelResults.map(r => r ? Math.round(r) + 'ms' : 'HATA').join(', ')}</small></p>
+            `;
+            
+            btn.disabled = false;
+            btn.textContent = 'Tekrar Test Et';
+        }
+    </script>
+</body>
+</html>

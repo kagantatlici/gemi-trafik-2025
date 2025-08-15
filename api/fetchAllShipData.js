@@ -41,9 +41,11 @@ export default async function handler(req, res) {
 
   try {
     const result = await fetchAllShipData();
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).json(result);
   } catch (error) {
     console.error('Error in fetchAllShipData:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: error.message });
   }
 }
