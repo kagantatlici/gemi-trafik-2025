@@ -89,7 +89,6 @@ async function fetchAllShipData() {
       const data = parseHTMLTable(html);
       allResults[filter.name] = formatData(data);
     } catch (e) {
-      console.log(`❌ ${filter.name} failed: ${e}`);
       allResults[filter.name] = { error: e.toString() };
     }
   }
@@ -97,7 +96,6 @@ async function fetchAllShipData() {
   const stats = generateDashboardStats(allResults);
 
   const end = new Date().getTime();
-  console.log("⏱ Toplam fetchAllShipData süresi: " + (end - start) + " ms");
 
   return {
     stats: stats,
@@ -139,9 +137,6 @@ function generateDashboardStats(results) {
   FILTER_SETS.forEach(filter => {
     const data = results[filter.name];
     
-    // Debug log
-    console.log(`Processing ${filter.name}:`, data);
-    
     if (Array.isArray(data)) {
       const direction = filter.name.startsWith("Güney") ? "guney" : "kuzey";
       const type = filter.name.includes("Planlı") ? "planli" : "hazir";
@@ -153,7 +148,6 @@ function generateDashboardStats(results) {
         gunduzcu: data.filter(row => row && isDaytimeOnlyShip(row)).length
       };
     } else {
-      console.error(`Invalid data for ${filter.name}:`, data);
       // Set default values if data is invalid
       const direction = filter.name.startsWith("Güney") ? "guney" : "kuzey";
       const type = filter.name.includes("Planlı") ? "planli" : "hazir";
@@ -166,7 +160,6 @@ function generateDashboardStats(results) {
     }
   });
 
-  console.log('Final stats:', stats);
   return stats;
 }
 
